@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CHAT APP</title>
+    <style>
+        textarea {
+            width: 100%;
+            height: 300px;
+            margin-bottom: 10px;
+            overflow-y: scroll; /* Add scrolling if content overflows */
+            white-space: pre-wrap; /* Preserve whitespace and newlines */
+            direction: rtl; /* Right-to-left text direction for bottom-to-top scrolling */
+            text-align: left; /* Left-align text in textarea */
+        }
+    </style>
+</head>
+<body>
+    <h1>CHAT APP</h1>
+
+    <!-- Display chat messages in a read-only textarea -->
+    {% if chats %}
+    <textarea id="chat-box" readonly>
+        {% for chat in chats %}
+            {{ chat.content }} ({{ chat.timestamp }}) - {{ chat.Gname.groupName }}
+            {{ "\n" }}
+        {% endfor %}
+    </textarea>
+    {% else %}
+    <p>No chats available.</p>
+    {% endif %}
+
+    <!-- Input for sending new messages -->
+    <input type="text" id="message" placeholder="Type your message here">
+    <button id="sendmsg">Send</button>
+
+    <!-- Container for dynamically displayed messages -->
+    <div class="display"></div>
+
+    <!-- Include group name in JSON format for use in JavaScript -->
+    {{ groupname|json_script:"group-name" }}
+
+    <script>
+        // Get the group name from the JSON script tag
+        const groupName = JSON.parse(document.getElementById('group-name').textContent);
+
+        // Create a WebSocket connection
+        const ws = new WebSocket(`ws://127.0.0.1:8001/ws/sc/${groupName}/`);
+
+        // Select DOM elements
+        const button = document.getElementById('sendmsg');
+        const msg = document.getElementById('message');
+        const chatBox = document.getElementById('chat-box');
+
+        // Event handler for when the WebSocket connection opens
+        ws.onopen = function() {
+            console.log('WebSocket connection opened');
+        };
+
+        // Event handler for receiving messages from the WebSocket
+        ws.onmessage = function(event) {
+            console.log('Message from server:', event.data);
+            const data = JSON.parse(event.data);
+            chatBox.value += `${data.message}\n`;
+            chatBox.scrollTop = 0;
+        };
+    
+
+        // Event handler for when the WebSocket connection closes
+        ws.onclose = function(event) {
+            console.log('WebSocket connection closed:', event);
+        };
+
+        // Event handler for WebSocket errors
+        ws.onerror = function(event) {
+            console.error('WebSocket error observed:', event);
+        };
+
+        // Send a message when the button is clicked
+        button.addEventListener('click', () => {
+            if (msg.value) {
+                ws.send(JSON.stringify({
+                    'message': msg.value // Send message as JSON
+                }));
+                msg.value = ''; // Clear the input field
+            }
+        });
+    </script>
+</body>
+</html>
